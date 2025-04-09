@@ -27,5 +27,6 @@
       "js": ["content.js"],
       "matches": ["<all_urls>"]
     }
-  ]
+  ],
+  "permissions": ["storage", "tabs", "activeTab"]
 }
