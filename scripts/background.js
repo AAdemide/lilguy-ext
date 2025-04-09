@@ -4,6 +4,7 @@ const labels = [`Helpful for ${GOAL}`, `Not helpful for ${GOAL}`];
 
 class PipelineSingleton {
   static task = "zero-shot-classification";
+  //zero shot model not loading this model name was found in lilguy-ext\node_modules\@huggingface\transformers\src\pipelines.js
   static model = "Xenova/nli-deberta-v3-xsmall";
   static instance = null;
 
