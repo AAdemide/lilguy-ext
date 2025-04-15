@@ -1,11 +1,11 @@
-import { encode, decode } from 'gpt-tokenizer';
+import { encode, decode } from "gpt-tokenizer";
 
 const model = 'gpt-4o';
 const openaiApiKey = ''; 
 
-const apiUrl = 'https://api.openai.com/v1/chat/completions';
+const apiUrl = "https://api.openai.com/v1/chat/completions";
 
-function splitByToken(text, maxTokens = 10) {
+function splitByToken(text, maxTokens = 100) {
   const tokens = encode(text);
   const batches = [];
 
@@ -14,7 +14,6 @@ function splitByToken(text, maxTokens = 10) {
     const chunkText = decode(chunkTokens);
     batches.push(chunkText);
   }
-console.log(batches)
   return batches;
 }
 
@@ -23,16 +22,19 @@ async function classifyTextForGoal(text, goal) {
 
   try {
     const response = await fetch(apiUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${openaiApiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model,
         messages: [
-          { role: 'system', content: 'You are a helpful assistant that classifies webpages.' },
-          { role: 'user', content: prompt }
+          {
+            role: "system",
+            content: "You are a helpful assistant that classifies webpages.",
+          },
+          { role: "user", content: prompt },
         ],
         max_tokens: 100,
         temperature: 0,
@@ -42,12 +44,12 @@ async function classifyTextForGoal(text, goal) {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error?.message || 'OpenAI API error');
+      throw new Error(data.error?.message || "OpenAI API error");
     }
 
     return data.choices[0].message.content.trim();
   } catch (error) {
-    console.error('Error during classification:', error);
+    console.error("Error during classification:", error);
     return null;
   }
 }
@@ -60,39 +62,112 @@ function cosineSimilarity(vecA, vecB) {
 }
 
 async function getEmbedding(text) {
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
+  const response = await fetch("https://api.openai.com/v1/embeddings", {
+    method: "POST",
     headers: {
-      'Authorization': `Bearer ${openaiApiKey}`,
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: 'text-embedding-3-small',
-      input: text
-    })
+      model: "text-embedding-3-small",
+      input: text,
+    }),
   });
 
   const data = await response.json();
-  return data.data[0].embedding;
+  if (data.error) {
+    return console.error(data);
+  }
+  return data.data.map((item) => item.embedding);
 }
 
 chrome.runtime.onMessage.addListener(async (req, sender, sendResponse) => {
   const { pageText } = req;
+  const { pageName } = req;
   const pageChunks = splitByToken(pageText);
-  const goalEmbedding = await getEmbedding("learning how to use the Next.js framework to build websites");
-  for (const chunk of pageChunks) {
-    const chunkEmbedding = await getEmbedding(chunk);
-    const similarity = cosineSimilarity(goalEmbedding, chunkEmbedding);
-    console.log("Similarity:", similarity > .75 ? 'helpful' : 'not helpful', similarity);
+  // const goalEmbedding = await getEmbedding("learning how to use the Next.js framework to build websites");
+  async function getGoalEmbeddings() {
+    const goals = {
+      "nextjs-basics": "learning the basics of Next.js",
+      routing: "learning routing in Next.js",
+      "file-based-routing": "learning file-based routing in Next.js",
+      "dynamic-routing": "learning dynamic routing in Next.js",
+      "app-router": "learning how to use the App Router in Next.js",
+      "pages-router": "learning how to use the Pages Router in Next.js",
+      react: "learning how to use React",
+      ssr: "learning server-side rendering in Next.js",
+      ssg: "learning static site generation in Next.js",
+      csr: "learning client-side rendering in Next.js",
+      "api-routes": "learning how to use API routes in Next.js",
+      "data-fetching": "learning data fetching strategies in Next.js",
+      getStaticProps: "learning how to use getStaticProps",
+      getServerSideProps: "learning how to use getServerSideProps",
+      middleware: "learning how to use middleware in Next.js",
+      "image-optimization": "learning image optimization in Next.js",
+      seo: "learning SEO best practices with Next.js",
+      "head-component": "learning how to use the Head component in Next.js",
+      auth: "learning how to implement authentication in Next.js",
+      deployment: "learning how to deploy a Next.js app",
+      vercel: "learning how to deploy with Vercel",
+      tailwind: "learning how to use Tailwind CSS with Next.js",
+      typescript: "learning how to use TypeScript with Next.js",
+      fullstack: "learning to build a full-stack app using Next.js",
+      "dashboard-ui": "learning how to build a dashboard UI with Next.js",
+    };
+
+    const inputTexts = Object.values(goals);
+
+    const response = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "text-embedding-3-small",
+        input: inputTexts,
+      }),
+    });
+
+    const data = await response.json();
+
+    const goalEmbeddings = {};
+    Object.keys(goals).forEach((key, index) => {
+      goalEmbeddings[key] = data.data[index].embedding;
+    });
+
+    return goalEmbeddings;
   }
+  // console.log(pageChunks)
+  const goalEmbeddings = await getGoalEmbeddings();
+  const chunkEmbeddings = await getEmbedding(pageChunks);
+  // console.log(chunkEmbeddings)
+  // console.log(goalEmbeddings, pageName);
 
-  // for (const chunk of pageChunks) {
-  //   const result = await classifyTextForGoal(chunk, goal);
-  //   console.log('Classification Result for chunk:', result);
-  //   // You can break early if one chunk is enough
-  // }
-
-  sendResponse({ res: 'success in sending pageText' });
+  let largestSimilarity = -Infinity;
+  for (const goal in goalEmbeddings) {
+    let highest = 0;
+    for (const emb of chunkEmbeddings) {
+      // console.log(goal, emb);
+      const similarity = Math.round(cosineSimilarity(goalEmbeddings[goal], emb)*10)/10;
+      // console.log(similarity);
+      if (similarity > highest) highest = similarity;
+    }
+    if (highest > largestSimilarity) {
+      largestSimilarity = highest;
+    }
+    console.log(
+      "Similarity:",
+      highest >= 0.5 ? "helpful" : "not helpful",
+      highest
+    );
+  }
+  console.log(
+    "Total Similarity:",
+    largestSimilarity >= 0.5 ? "helpful" : "not helpful",
+    largestSimilarity
+  );
+  sendResponse({ res: "success in sending pageText" });
   return true;
 });
 

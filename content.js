@@ -12,7 +12,8 @@ import {Readability} from '@mozilla/readability';
     // } else {
     //     message = {pageText: document.body.innerText};
     // }
-    const message = {pageText}
+    console.log(pageText)
+    const message = {pageText, pageName: window.location.href}
     const res = await chrome.runtime.sendMessage(message);
 
     //if there is a main element parse that alone
