@@ -5,7 +5,10 @@
     "build": "webpack"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.4.2"
+    "@dqbd/tiktoken": "^1.0.20",
+    "@huggingface/transformers": "^3.4.2",
+    "@mozilla/readability": "^0.6.0",
+    "gpt-tokenizer": "^2.9.0"
   },
   "devDependencies": {
     "webpack": "^5.99.5",

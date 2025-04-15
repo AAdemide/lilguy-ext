@@ -25,7 +25,7 @@
   },
   "content_scripts": [
     {
-      "js": ["content.js"],
+      "js": ["dist/content.js"],
       "matches": ["<all_urls>"]
     }
   ],

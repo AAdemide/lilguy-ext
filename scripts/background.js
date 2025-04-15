@@ -1,39 +1,98 @@
-import { pipeline } from "@huggingface/transformers";
-const GOAL = "Learning NextJs";
-const labels = [`Helpful for ${GOAL}`, `Not helpful for ${GOAL}`];
+import { encode, decode } from 'gpt-tokenizer';
 
-class PipelineSingleton {
-  static task = "zero-shot-classification";
-  //zero shot model not loading this model name was found in lilguy-ext\node_modules\@huggingface\transformers\src\pipelines.js
-  static model = "Xenova/nli-deberta-v3-xsmall";
-  static instance = null;
+const model = 'gpt-4o';
+const openaiApiKey = ''; 
 
-  static async getInstance(progress_callback = null) {
-    this.instance ??= pipeline(this.task, this.model, { progress_callback });
-    return this.instance;
+const apiUrl = 'https://api.openai.com/v1/chat/completions';
+
+function splitByToken(text, maxTokens = 10) {
+  const tokens = encode(text);
+  const batches = [];
+
+  for (let i = 0; i < tokens.length; i += maxTokens) {
+    const chunkTokens = tokens.slice(i, i + maxTokens);
+    const chunkText = decode(chunkTokens);
+    batches.push(chunkText);
+  }
+console.log(batches)
+  return batches;
+}
+
+async function classifyTextForGoal(text, goal) {
+  const prompt = `Is this text helpful for the goal of learning ${goal}? \n\nText: ${text} \n\nAnswer with Yes or No.`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: 'You are a helpful assistant that classifies webpages.' },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 100,
+        temperature: 0,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'OpenAI API error');
+    }
+
+    return data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('Error during classification:', error);
+    return null;
   }
 }
 
-// Create generic classify function, which will be reused for the different types of events.
-const classify = async (text) => {
-  // Get the pipeline instance. This will load and build the model when run for the first time.
-  let model = await PipelineSingleton.getInstance((data) => {
-    // You can track the progress of the pipeline creation here.
-    // e.g., you can send `data` back to the UI to indicate a progress bar
-    // console.log('progress', data)
+function cosineSimilarity(vecA, vecB) {
+  const dot = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  const normA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const normB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  return dot / (normA * normB);
+}
+
+async function getEmbedding(text) {
+  const response = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'text-embedding-3-small',
+      input: text
+    })
   });
 
-  // Actually run the model on the input text  label goes here???
-  let result = await model(text, labels);
-  return result;
-};
+  const data = await response.json();
+  return data.data[0].embedding;
+}
 
 chrome.runtime.onMessage.addListener(async (req, sender, sendResponse) => {
-  console.log("req: ", req);
-  const res = await classify(req.pageText);
-  console.log("res from bgscript:")
-  console.log(res)
-  sendResponse({ res: "success in sending pageText" });
+  const { pageText } = req;
+  const pageChunks = splitByToken(pageText);
+  const goalEmbedding = await getEmbedding("learning how to use the Next.js framework to build websites");
+  for (const chunk of pageChunks) {
+    const chunkEmbedding = await getEmbedding(chunk);
+    const similarity = cosineSimilarity(goalEmbedding, chunkEmbedding);
+    console.log("Similarity:", similarity > .75 ? 'helpful' : 'not helpful', similarity);
+  }
+
+  // for (const chunk of pageChunks) {
+  //   const result = await classifyTextForGoal(chunk, goal);
+  //   console.log('Classification Result for chunk:', result);
+  //   // You can break early if one chunk is enough
+  // }
+
+  sendResponse({ res: 'success in sending pageText' });
   return true;
 });
 
@@ -113,8 +172,7 @@ function updateSessionDuration(tabId, duration) {
       const hostname = new URL(tab.url).hostname;
 
       chrome.storage.local.get(["sessionData"], (result) => {
-        const sessionData = result ? result.sessionData : {};
-
+        const sessionData = result.sessionData ?? {};
         if (!sessionData[hostname]) {
           // create inital session data objects
           sessionData[hostname] = {
@@ -122,7 +180,6 @@ function updateSessionDuration(tabId, duration) {
             sessions: 0,
           };
         }
-
         sessionData[hostname].totalDuration += duration;
         sessionData[hostname].sessions += 1;
         chrome.storage.local.set({ sessionData });
