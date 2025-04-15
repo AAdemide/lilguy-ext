@@ -7,10 +7,9 @@ let sessionStartTime = {};
 let activeTabId = null;
 
 // initialize or get current data
-chrome.storage.local.get(['pageViews', 'sessionData'], (result) => {
-    const pageViews = result ? result.pageViews : {};
-    const sessionData = result ? result.sessionData : {};
-    chrome.storage.local.set({ pageViews, sessionData });
+chrome.storage.local.get(['siteData'], (result) => {
+    const siteData = result ? result.siteData : {};
+    chrome.storage.local.set({ siteData });
 });
 
 // track active tab
@@ -53,11 +52,19 @@ function incrementPageView(url) {
     try {
         const hostname = new URL(url).hostname;
 
-        chrome.storage.local.get(['pageViews'], (result) => {
-            const pageViews = result.pageViews || {};
-            pageViews[hostname] = (pageViews[hostname] || 0) + 1;
+        chrome.storage.local.get(['siteData'], (result) => {
+            const siteData = result.siteData || {};
+            if (!siteData[hostname]) {
+                siteData[hostname] = {
+                    visits: 0,
+                    sessions: 0,
+                    totalDuration: 0,
+                    userId: null // This will be set when user data is available
+                };
+            }
+            siteData[hostname].visits += 1;
 
-            chrome.storage.local.set({ pageViews });
+            chrome.storage.local.set({ siteData });
         });
     } catch (e) {
         console.error("Error processing URL:", e);
@@ -74,20 +81,21 @@ function updateSessionDuration(tabId, duration) {
         try {
             const hostname = new URL(tab.url).hostname;
 
-            chrome.storage.local.get(['sessionData'], (result) => {
-                const sessionData = result ? result.sessionData : {};
+            chrome.storage.local.get(['siteData'], (result) => {
+                const siteData = result ? result.siteData : {};
 
-                if (!sessionData[hostname]) {
-                    // create inital session data objects
-                    sessionData[hostname] = {
+                if (!siteData[hostname]) {
+                    siteData[hostname] = {
+                        visits: 0,
+                        sessions: 0,
                         totalDuration: 0,
-                        sessions: 0
+                        userId: null
                     };
                 }
 
-                sessionData[hostname].totalDuration += duration;
-                sessionData[hostname].sessions += 1;
-                chrome.storage.local.set({ sessionData });
+                siteData[hostname].totalDuration += duration;
+                siteData[hostname].sessions += 1;
+                chrome.storage.local.set({ siteData });
             });
         } catch (e) {
             console.error("Error updating session data:", e);
