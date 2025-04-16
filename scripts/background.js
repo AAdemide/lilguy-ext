@@ -223,12 +223,24 @@ function incrementPageView(url) {
                     visits: 0,
                     sessions: 0,
                     totalDuration: 0,
-                    userId: null // This will be set when user data is available
+                    userId: null
                 };
             }
             siteData[hostname].visits += 1;
 
-            chrome.storage.local.set({ siteData });
+            chrome.storage.local.set({ siteData }, () => {
+                // Make POST API call to sync data with backend
+                fetch('http://localhost:3000/api/sitevisit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        hostname,
+                        siteData: siteData[hostname],
+                    })
+                }).catch(error => console.error('Error syncing with backend:', error));
+            });
         });
     } catch (e) {
         console.error("Error processing URL:", e);
@@ -259,7 +271,19 @@ function updateSessionDuration(tabId, duration) {
 
                 siteData[hostname].totalDuration += duration;
                 siteData[hostname].sessions += 1;
-                chrome.storage.local.set({ siteData });
+                chrome.storage.local.set({ siteData }, () => {
+                    // Make POST API call to sync data with backend
+                    fetch('http://localhost:3000/api/sitevisit', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            hostname,
+                            siteData: siteData[hostname],
+                        })
+                    }).catch(error => console.error('Error syncing with backend:', error));
+                });
             });
         } catch (e) {
             console.error("Error updating session data:", e);
