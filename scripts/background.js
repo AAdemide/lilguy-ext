@@ -146,6 +146,8 @@ chrome.runtime.onMessage.addListener((req, _sender, sendResponse) => {
   sendResponse({ success: "page received" });
 });
 
+
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Extension installed");
   console.log("this is the background/service worker");
@@ -177,7 +179,12 @@ async function ensureContentScript(tabId) {
 // track active tab
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   // Inject the content script first
-  // ensureContentScript(activeInfo.tabId);
+  try {
+    ensureContentScript(activeInfo.tabId);
+    
+  } catch (error) {
+    
+  }
   const previousTabId = activeTabId;
   activeTabId = activeInfo.tabId;
 
