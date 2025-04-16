@@ -16,6 +16,7 @@ export function LilGuyAnalytics() {
 
   const loadData = async () => {
     try {
+      // TODO USE API_URL
       const response = await fetch("http://localhost:3000/api/sitevisit", {
         headers: {
           "x-user-id": "test-user", // TODO: Replace with actual user ID

@@ -1,5 +1,6 @@
 {
   "main": "scripts/background.js",
+  "type": "module",
   "scripts": {
     "dev": "webpack --watch",
     "build": "webpack"
