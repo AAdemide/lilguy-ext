@@ -3,6 +3,7 @@ import "./index.css";
 
 export function LilGuyAnalytics() {
     const [siteData, setSiteData] = React.useState({});
+    const [categoryData, setCategoryData] = React.useState({});
     const [isLoading, setIsLoading] = React.useState(true);
 
     useEffect(() => {
@@ -16,15 +17,16 @@ export function LilGuyAnalytics() {
     }, []);
 
     const loadData = () => {
-        chrome.storage.local.get(['siteData'], (result) => {
+        chrome.storage.local.get(['siteData', 'categoryData'], (result) => {
             setSiteData(result.siteData || {});
+            setCategoryData(result.categoryData || {});
             setIsLoading(false);
         });
     };
 
     const clearData = () => {
         if (confirm('Are you sure you want to clear all analytics data?')) {
-            chrome.storage.local.set({ siteData: {} });
+            chrome.storage.local.set({ siteData: {}, categoryData: {} });
         }
     };
 
@@ -71,7 +73,7 @@ export function LilGuyAnalytics() {
                     <tbody>
                         {sites.map(site => (
                             <tr key={site}>
-                                <td>{site}</td>
+                                <td className={categoryData[site]??''}>{site}</td>
                                 <td>{siteData[site].visits}</td>
                                 <td>{siteData[site].sessions}</td>
                                 <td>{formatSecondsToTime(siteData[site].totalDuration)}</td>
