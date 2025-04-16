@@ -3,7 +3,10 @@ import "./index.css";
 
 export function LilGuyAnalytics() {
     const [siteData, setSiteData] = React.useState({});
+<<<<<<< HEAD
     const [categoryData, setCategoryData] = React.useState({});
+=======
+>>>>>>> main
     const [isLoading, setIsLoading] = React.useState(true);
 
     useEffect(() => {
@@ -17,16 +20,25 @@ export function LilGuyAnalytics() {
     }, []);
 
     const loadData = () => {
+<<<<<<< HEAD
         chrome.storage.local.get(['siteData', 'categoryData'], (result) => {
             setSiteData(result.siteData || {});
             setCategoryData(result.categoryData || {});
+=======
+        chrome.storage.local.get(['siteData'], (result) => {
+            setSiteData(result.siteData || {});
+>>>>>>> main
             setIsLoading(false);
         });
     };
 
     const clearData = () => {
         if (confirm('Are you sure you want to clear all analytics data?')) {
+<<<<<<< HEAD
             chrome.storage.local.set({ siteData: {}, categoryData: {} });
+=======
+            chrome.storage.local.set({ siteData: {} });
+>>>>>>> main
         }
     };
 
