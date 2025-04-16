@@ -17,7 +17,7 @@ export function LilGuyAnalytics() {
   const loadData = async () => {
     try {
       // TODO USE API_URL
-      const response = await fetch("http://localhost:3000/api/sitevisit", {
+      const response = await fetch("http://localhost:3000/api/sitevisits", {
         headers: {
           "x-user-id": "test-user", // TODO: Replace with actual user ID
         },
@@ -51,7 +51,7 @@ export function LilGuyAnalytics() {
   const clearData = () => {
     if (confirm("Are you sure you want to clear all analytics data?")) {
       chrome.storage.local.set({ siteData: {}, categoryData: {} });
-      // TODO: make it call DELETE ${process.env.LILGUY}/api/sitevisit
+      // TODO: make it call DELETE ${process.env.LILGUY}/api/sitevisits
     }
   };
 

@@ -1,7 +1,7 @@
 import { encode, decode } from "gpt-tokenizer";
 
 const model = 'gpt-4o';
-const openaiApiKey = ''; 
+const openaiApiKey = '';
 
 const apiUrl = "https://api.openai.com/v1/chat/completions";
 let pages = [];
@@ -96,6 +96,7 @@ const catPage = async () => {
     });
 
     const data = await response.json();
+    console.log('DATAAA>>>', data)
 
     const goalEmbeddings = {};
     Object.keys(goals).forEach((key, index) => {
@@ -126,7 +127,7 @@ const catPage = async () => {
       ...currentCategoryData,
       [hostname]: largestSimilarity >= 0.5 ? "helpful" : "not-helpful",
     };
-      chrome.storage.local.set({
+    chrome.storage.local.set({
       categoryData: updatedCategoryData,
     });
   });
@@ -158,8 +159,8 @@ let activeTabId = null;
 
 // initialize or get current data
 chrome.storage.local.get(['siteData'], (result) => {
-    const siteData = result ? result.siteData : {};
-    chrome.storage.local.set({ siteData });
+  const siteData = result ? result.siteData : {};
+  chrome.storage.local.set({ siteData });
 });
 
 async function ensureContentScript(tabId) {
@@ -181,16 +182,16 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   // Inject the content script first
   try {
     ensureContentScript(activeInfo.tabId);
-    
+
   } catch (error) {
-    
+
   }
   const previousTabId = activeTabId;
   activeTabId = activeInfo.tabId;
 
   // if switching from a tab, record session duration
   if (previousTabId && sessionStartTime[previousTabId]) {
-    const duration = Date.now() - sessionStartTime[previousTabId];
+    const duration = (Date.now() - sessionStartTime[previousTabId]) / 1000;
     updateSessionDuration(previousTabId, duration);
   }
   // reset session start time for this tab
@@ -211,7 +212,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // handle tab close events
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (sessionStartTime[tabId]) {
-    const duration = Date.now() - sessionStartTime[tabId];
+    const duration = (Date.now() - sessionStartTime[tabId]) / 1000;
     updateSessionDuration(tabId, duration);
     delete sessionStartTime[tabId];
   }
@@ -220,38 +221,38 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // helper functions
 // increment the page view counter for a URL
 function incrementPageView(url) {
-    try {
-        const hostname = new URL(url).hostname;
+  try {
+    const hostname = new URL(url).hostname;
 
-        chrome.storage.local.get(['siteData'], (result) => {
-            const siteData = result.siteData || {};
-            if (!siteData[hostname]) {
-                siteData[hostname] = {
-                    visits: 0,
-                    sessions: 0,
-                    totalDuration: 0,
-                    userId: null
-                };
-            }
-            siteData[hostname].visits += 1;
+    chrome.storage.local.get(['siteData'], (result) => {
+      const siteData = result.siteData || {};
+      if (!siteData[hostname]) {
+        siteData[hostname] = {
+          visits: 0,
+          sessions: 0,
+          totalDuration: 0,
+          userId: null
+        };
+      }
+      siteData[hostname].visits += 1;
 
-            chrome.storage.local.set({ siteData }, () => {
-                // Make POST API call to sync data with backend
-                fetch('http://localhost:3000/api/sitevisit', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        hostname,
-                        siteData: siteData[hostname],
-                    })
-                }).catch(error => console.error('Error syncing with backend:', error));
-            });
-        });
-    } catch (e) {
-        console.error("Error processing URL:", e);
-    }
+      chrome.storage.local.set({ siteData }, () => {
+        // Make POST API call to sync data with backend
+        fetch('http://localhost:3000/api/sitevisits', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            hostname,
+            siteData: siteData[hostname],
+          })
+        }).catch(error => console.error('Error syncing with backend:', error));
+      });
+    });
+  } catch (e) {
+    console.error("Error processing URL:", e);
+  }
 }
 
 // update session duration for a tab
@@ -264,36 +265,50 @@ function updateSessionDuration(tabId, duration) {
     try {
       const hostname = new URL(tab.url).hostname;
 
-            chrome.storage.local.get(['siteData'], (result) => {
-                const siteData = result ? result.siteData : {};
+      chrome.storage.local.get(['siteData'], (result) => {
+        const siteData = result ? result.siteData : {};
 
-                if (!siteData[hostname]) {
-                    siteData[hostname] = {
-                        visits: 0,
-                        sessions: 0,
-                        totalDuration: 0,
-                        userId: null
-                    };
-                }
-
-                siteData[hostname].totalDuration += duration;
-                siteData[hostname].sessions += 1;
-                chrome.storage.local.set({ siteData }, () => {
-                    // Make POST API call to sync data with backend
-                    fetch('http://localhost:3000/api/sitevisit', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            hostname,
-                            siteData: siteData[hostname],
-                        })
-                    }).catch(error => console.error('Error syncing with backend:', error));
-                });
-            });
-        } catch (e) {
-            console.error("Error updating session data:", e);
+        if (!siteData[hostname]) {
+          siteData[hostname] = {
+            visits: 0,
+            sessions: 0,
+            totalDuration: 0,
+            userId: null
+          };
         }
-    });
+
+        siteData[hostname].totalDuration += duration;
+        siteData[hostname].sessions += 1;
+        chrome.storage.local.set({ siteData }, () => {
+          // Make POST API call to sync TOTAL data with backend
+          fetch('http://localhost:3000/api/sitevisits', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              hostname,
+              siteData: siteData[hostname],
+            })
+          }
+          ).catch(error => console.error('Error syncing with backend:', error));
+
+          fetch('http://localhost:3000/api/sitevisit', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              hostname,
+              duration: duration,
+            })
+          }
+          ).catch(error => console.error('Error syncing with backend:', error));
+
+        });
+      });
+    } catch (e) {
+      console.error("Error updating session data:", e);
+    }
+  });
 }
