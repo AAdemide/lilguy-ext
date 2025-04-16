@@ -155,10 +155,9 @@ let sessionStartTime = {};
 let activeTabId = null;
 
 // initialize or get current data
-chrome.storage.local.get(["pageViews", "sessionData"], (result) => {
-  const pageViews = result ? result.pageViews : {};
-  const sessionData = result ? result.sessionData : {};
-  chrome.storage.local.set({ pageViews, sessionData });
+chrome.storage.local.get(['siteData'], (result) => {
+    const siteData = result ? result.siteData : {};
+    chrome.storage.local.set({ siteData });
 });
 
 async function ensureContentScript(tabId) {
@@ -214,17 +213,26 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // helper functions
 // increment the page view counter for a URL
 function incrementPageView(url) {
-  try {
-    const hostname = new URL(url).hostname;
-    chrome.storage.local.get(["pageViews"], (result) => {
-      const pageViews = result.pageViews || {};
-      pageViews[hostname] = (pageViews[hostname] || 0) + 1;
+    try {
+        const hostname = new URL(url).hostname;
 
-      chrome.storage.local.set({ pageViews });
-    });
-  } catch (e) {
-    console.error("Error processing URL:", e);
-  }
+        chrome.storage.local.get(['siteData'], (result) => {
+            const siteData = result.siteData || {};
+            if (!siteData[hostname]) {
+                siteData[hostname] = {
+                    visits: 0,
+                    sessions: 0,
+                    totalDuration: 0,
+                    userId: null // This will be set when user data is available
+                };
+            }
+            siteData[hostname].visits += 1;
+
+            chrome.storage.local.set({ siteData });
+        });
+    } catch (e) {
+        console.error("Error processing URL:", e);
+    }
 }
 
 // update session duration for a tab
@@ -237,21 +245,24 @@ function updateSessionDuration(tabId, duration) {
     try {
       const hostname = new URL(tab.url).hostname;
 
-      chrome.storage.local.get(["sessionData"], (result) => {
-        const sessionData = result.sessionData ?? {};
-        if (!sessionData[hostname]) {
-          // create inital session data objects
-          sessionData[hostname] = {
-            totalDuration: 0,
-            sessions: 0,
-          };
+            chrome.storage.local.get(['siteData'], (result) => {
+                const siteData = result ? result.siteData : {};
+
+                if (!siteData[hostname]) {
+                    siteData[hostname] = {
+                        visits: 0,
+                        sessions: 0,
+                        totalDuration: 0,
+                        userId: null
+                    };
+                }
+
+                siteData[hostname].totalDuration += duration;
+                siteData[hostname].sessions += 1;
+                chrome.storage.local.set({ siteData });
+            });
+        } catch (e) {
+            console.error("Error updating session data:", e);
         }
-        sessionData[hostname].totalDuration += duration;
-        sessionData[hostname].sessions += 1;
-        chrome.storage.local.set({ sessionData });
-      });
-    } catch (e) {
-      console.error("Error updating session data:", e);
-    }
-  });
+    });
 }

@@ -1,21 +1,14 @@
 import React, { useEffect } from "react";
-import { PageViews } from "../PageViews/PageViews";
-import { SessionDuration } from "../SessionDuration/SessionDuration";
 import "./index.css";
 
 export function LilGuyAnalytics() {
-    const [pageViews, setPageViews] = React.useState({});
-    const [sessionData, setSessionData] = React.useState({});
-    const [categoryData, setCategoryData] = React.useState({});
+    const [siteData, setSiteData] = React.useState({});
     const [isLoading, setIsLoading] = React.useState(true);
-    const [activeTab, setActiveTab] = React.useState('pageviews');
 
     useEffect(() => {
         loadData();
-
         // set up listener for storage changes
         chrome.storage.onChanged.addListener(handleStorageChange);
-
         return () => {
             // clean up listener when component unmounts
             chrome.storage.onChanged.removeListener(handleStorageChange);
@@ -23,64 +16,80 @@ export function LilGuyAnalytics() {
     }, []);
 
     const loadData = () => {
-        chrome.storage.local.get(['pageViews', 'sessionData', 'categoryData'], (result) => {
-            setPageViews(result.pageViews || {});
-            setSessionData(result.sessionData || {});
-            setCategoryData(result.categoryData || {});
+        chrome.storage.local.get(['siteData'], (result) => {
+            setSiteData(result.siteData || {});
             setIsLoading(false);
         });
     };
+
     const clearData = () => {
         if (confirm('Are you sure you want to clear all analytics data?')) {
-            chrome.storage.local.set({ pageViews: {}, sessionData: {}, categoryData: {} });
+            chrome.storage.local.set({ siteData: {} });
         }
     };
 
     const handleStorageChange = (changes, namespace) => {
-        if (namespace === 'local') {
-            if (changes.pageViews) {
-                setPageViews(changes.pageViews.newValue);
-            }
-            if (changes.sessionData) {
-                setSessionData(changes.sessionData.newValue);
-            }
+        if (namespace === 'local' && changes.siteData) {
+            setSiteData(changes.siteData.newValue);
         }
     };
 
+    function formatSecondsToTime(seconds) {
+        const totalMinutes = Math.ceil(seconds / 60);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
 
+        const parts = [];
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0 || hours === 0) parts.push(`${minutes}m`);
+
+        return parts.join(' ');
+    }
 
     const renderData = () => {
         if (isLoading) {
             return <div className="loading">Loading data...</div>;
         }
 
-        return activeTab === 'pageviews'
-            ? <PageViews pageViews={pageViews} categoryData={categoryData}/>
-            : <SessionDuration sessionData={sessionData} categoryData={categoryData}/>;
-    };
+        const sites = Object.keys(siteData);
 
+        if (sites.length === 0) {
+            return <div className="no-data">No analytics data recorded yet</div>;
+        }
+
+        return (
+            <div className="data-container">
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Website</th>
+                            <th>Visits</th>
+                            <th>Sessions</th>
+                            <th>Total Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sites.map(site => (
+                            <tr key={site}>
+                                <td>{site}</td>
+                                <td>{siteData[site].visits}</td>
+                                <td>{siteData[site].sessions}</td>
+                                <td>{formatSecondsToTime(siteData[site].totalDuration)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
 
     return (
         <div className="app-container">
             <h2>lilguy has been watching</h2>
-            <div className="tabs">
-                <button
-                    className={`tab ${activeTab === 'pageviews' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('pageviews')}
-                >
-                    Page Views
-                </button>
-                <button
-                    className={`tab ${activeTab === 'duration' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('duration')}
-                >
-                    Session Duration
-                </button>
-            </div>
             {renderData()}
             <button className="clear-data" onClick={clearData}>
                 Clear Data
             </button>
         </div>
-    )
+    );
 }
