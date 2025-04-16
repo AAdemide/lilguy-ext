@@ -11,25 +11,39 @@ export function LilGuyAnalytics() {
 
     useEffect(() => {
         loadData();
-        // set up listener for storage changes
-        chrome.storage.onChanged.addListener(handleStorageChange);
+        const intervalId = setInterval(loadData, 5000); // poll every 5 seconds
         return () => {
-            // clean up listener when component unmounts
-            chrome.storage.onChanged.removeListener(handleStorageChange);
+            clearInterval(intervalId);
         };
     }, []);
 
-    const loadData = () => {
-<<<<<<< HEAD
-        chrome.storage.local.get(['siteData', 'categoryData'], (result) => {
-            setSiteData(result.siteData || {});
-            setCategoryData(result.categoryData || {});
-=======
-        chrome.storage.local.get(['siteData'], (result) => {
-            setSiteData(result.siteData || {});
->>>>>>> main
+    const loadData = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/api/sitevisit', {
+                headers: {
+                    'x-user-id': 'test-user' // TODO: Replace with actual user ID
+                }
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                // Transform the data into the expected format
+                const transformedData = result.data.reduce((acc, site) => {
+                    acc[site.hostname] = {
+                        visits: site.visits,
+                        sessions: site.sessions,
+                        totalDuration: site.totalDuration
+                    };
+                    return acc;
+                }, {});
+                setSiteData(transformedData);
+            }
+
             setIsLoading(false);
-        });
+        } catch (error) {
+            console.error('Error fetching site data:', error);
+            setIsLoading(false);
+        }
     };
 
     const clearData = () => {
@@ -38,13 +52,7 @@ export function LilGuyAnalytics() {
             chrome.storage.local.set({ siteData: {}, categoryData: {} });
 =======
             chrome.storage.local.set({ siteData: {} });
->>>>>>> main
-        }
-    };
-
-    const handleStorageChange = (changes, namespace) => {
-        if (namespace === 'local' && changes.siteData) {
-            setSiteData(changes.siteData.newValue);
+            // TODO: make it call DELETE ${process.env.LILGUY}/api/sitevisit
         }
     };
 
