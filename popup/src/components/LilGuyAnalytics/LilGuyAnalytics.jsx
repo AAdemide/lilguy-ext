@@ -6,6 +6,7 @@ import "./index.css";
 export function LilGuyAnalytics() {
     const [pageViews, setPageViews] = React.useState({});
     const [sessionData, setSessionData] = React.useState({});
+    const [categoryData, setCategoryData] = React.useState({});
     const [isLoading, setIsLoading] = React.useState(true);
     const [activeTab, setActiveTab] = React.useState('pageviews');
 
@@ -22,15 +23,16 @@ export function LilGuyAnalytics() {
     }, []);
 
     const loadData = () => {
-        chrome.storage.local.get(['pageViews', 'sessionData'], (result) => {
+        chrome.storage.local.get(['pageViews', 'sessionData', 'categoryData'], (result) => {
             setPageViews(result.pageViews || {});
             setSessionData(result.sessionData || {});
+            setCategoryData(result.categoryData || {});
             setIsLoading(false);
         });
     };
     const clearData = () => {
         if (confirm('Are you sure you want to clear all analytics data?')) {
-            chrome.storage.local.set({ pageViews: {}, sessionData: {} });
+            chrome.storage.local.set({ pageViews: {}, sessionData: {}, categoryData: {} });
         }
     };
 
@@ -53,8 +55,8 @@ export function LilGuyAnalytics() {
         }
 
         return activeTab === 'pageviews'
-            ? <PageViews pageViews={pageViews} />
-            : <SessionDuration sessionData={sessionData} />;
+            ? <PageViews pageViews={pageViews} categoryData={categoryData}/>
+            : <SessionDuration sessionData={sessionData} categoryData={categoryData}/>;
     };
 
 

@@ -1,4 +1,4 @@
-export function SessionDuration({ sessionData }) {
+export function SessionDuration({ sessionData, categoryData }) {
     const formatTime = (ms) => {
       const seconds = Math.floor(ms / 1000);
       const minutes = Math.floor(seconds / 60);
@@ -32,7 +32,7 @@ export function SessionDuration({ sessionData }) {
               
               return (
                 <tr key={site}>
-                  <td>{site}</td>
+                  <td className={categoryData[site]??''}>{site}</td>
                   <td>{formatTime(data.totalDuration)}</td>
                   <td>{data.sessions}</td>
                   <td>{formatTime(avgDuration)}</td>

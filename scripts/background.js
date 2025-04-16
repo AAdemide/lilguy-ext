@@ -4,6 +4,7 @@ const model = 'gpt-4o';
 const openaiApiKey = ''; 
 
 const apiUrl = "https://api.openai.com/v1/chat/completions";
+let pages = [];
 
 function splitByToken(text, maxTokens = 100) {
   const tokens = encode(text);
@@ -15,43 +16,6 @@ function splitByToken(text, maxTokens = 100) {
     batches.push(chunkText);
   }
   return batches;
-}
-
-async function classifyTextForGoal(text, goal) {
-  const prompt = `Is this text helpful for the goal of learning ${goal}? \n\nText: ${text} \n\nAnswer with Yes or No.`;
-
-  try {
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openaiApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content: "You are a helpful assistant that classifies webpages.",
-          },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: 100,
-        temperature: 0,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error?.message || "OpenAI API error");
-    }
-
-    return data.choices[0].message.content.trim();
-  } catch (error) {
-    console.error("Error during classification:", error);
-    return null;
-  }
 }
 
 function cosineSimilarity(vecA, vecB) {
@@ -81,14 +45,16 @@ async function getEmbedding(text) {
   return data.data.map((item) => item.embedding);
 }
 
-chrome.runtime.onMessage.addListener(async (req, sender, sendResponse) => {
+const catPage = async () => {
+  const req = pages[0];
   const { pageText } = req;
   const { pageName } = req;
   const pageChunks = splitByToken(pageText);
   // const goalEmbedding = await getEmbedding("learning how to use the Next.js framework to build websites");
   async function getGoalEmbeddings() {
     const goals = {
-      "nextjs-basics": "learning the basics of Next.js",
+      nextjs: "learning to use the Next.js framework",
+      javascript: "learning to use the javascript programming language",
       routing: "learning routing in Next.js",
       "file-based-routing": "learning file-based routing in Next.js",
       "dynamic-routing": "learning dynamic routing in Next.js",
@@ -138,37 +104,46 @@ chrome.runtime.onMessage.addListener(async (req, sender, sendResponse) => {
 
     return goalEmbeddings;
   }
-  // console.log(pageChunks)
   const goalEmbeddings = await getGoalEmbeddings();
   const chunkEmbeddings = await getEmbedding(pageChunks);
-  // console.log(chunkEmbeddings)
-  // console.log(goalEmbeddings, pageName);
-
+  const hostname = new URL(pageName).hostname;
   let largestSimilarity = -Infinity;
   for (const goal in goalEmbeddings) {
     let highest = 0;
     for (const emb of chunkEmbeddings) {
-      // console.log(goal, emb);
-      const similarity = Math.round(cosineSimilarity(goalEmbeddings[goal], emb)*10)/10;
-      // console.log(similarity);
+      const similarity =
+        Math.round(cosineSimilarity(goalEmbeddings[goal], emb) * 10) / 10;
       if (similarity > highest) highest = similarity;
     }
     if (highest > largestSimilarity) {
       largestSimilarity = highest;
     }
-    console.log(
-      "Similarity:",
-      highest >= 0.5 ? "helpful" : "not helpful",
-      highest
-    );
   }
+  chrome.storage.local.get(["categoryData"]).then((data) => {
+    const currentCategoryData = data.categoryData || {};
+    // Update the category for this hostname
+    const updatedCategoryData = {
+      ...currentCategoryData,
+      [hostname]: largestSimilarity >= 0.5 ? "helpful" : "not-helpful",
+    };
+      chrome.storage.local.set({
+      categoryData: updatedCategoryData,
+    });
+  });
   console.log(
+    hostname,
     "Total Similarity:",
     largestSimilarity >= 0.5 ? "helpful" : "not helpful",
     largestSimilarity
   );
-  sendResponse({ res: "success in sending pageText" });
+  pages.shift();
   return true;
+};
+
+chrome.runtime.onMessage.addListener((req, _sender, sendResponse) => {
+  pages.push(req);
+  catPage();
+  sendResponse({ success: "page received" });
 });
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -186,8 +161,24 @@ chrome.storage.local.get(["pageViews", "sessionData"], (result) => {
   chrome.storage.local.set({ pageViews, sessionData });
 });
 
+async function ensureContentScript(tabId) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: "ping" });
+    return true;
+  } catch (e) {
+    // Not injected yet, inject it
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["dist/content.js"],
+    });
+    return false;
+  }
+}
+
 // track active tab
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  // Inject the content script first
+  // ensureContentScript(activeInfo.tabId);
   const previousTabId = activeTabId;
   activeTabId = activeInfo.tabId;
 
@@ -202,6 +193,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 
 // handle navigation events
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  console.log(changeInfo.status, tab.url)
   if (changeInfo.status === "complete" && tab.url) {
     incrementPageView(tab.url);
 
@@ -224,7 +216,6 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 function incrementPageView(url) {
   try {
     const hostname = new URL(url).hostname;
-
     chrome.storage.local.get(["pageViews"], (result) => {
       const pageViews = result.pageViews || {};
       pageViews[hostname] = (pageViews[hostname] || 0) + 1;

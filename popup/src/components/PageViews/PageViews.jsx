@@ -1,4 +1,4 @@
-export function PageViews({ pageViews }) {
+export function PageViews({ pageViews, categoryData }) {
     const sites = Object.keys( pageViews );
     
     if (sites.length === 0) {
@@ -18,7 +18,7 @@ export function PageViews({ pageViews }) {
           <tbody>
             {sites.map(site => (
               <tr key={site}>
-                <td>{site}</td>
+                <td className={categoryData[site]??''}>{site}</td>
                 <td>{pageViews[site]}</td>
               </tr>
             ))}
