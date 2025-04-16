@@ -7,30 +7,44 @@ export function LilGuyAnalytics() {
 
     useEffect(() => {
         loadData();
-        // set up listener for storage changes
-        chrome.storage.onChanged.addListener(handleStorageChange);
+        const intervalId = setInterval(loadData, 5000); // poll every 5 seconds
         return () => {
-            // clean up listener when component unmounts
-            chrome.storage.onChanged.removeListener(handleStorageChange);
+            clearInterval(intervalId);
         };
     }, []);
 
-    const loadData = () => {
-        chrome.storage.local.get(['siteData'], (result) => {
-            setSiteData(result.siteData || {});
+    const loadData = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/api/sitevisit', {
+                headers: {
+                    'x-user-id': 'test-user' // TODO: Replace with actual user ID
+                }
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                // Transform the data into the expected format
+                const transformedData = result.data.reduce((acc, site) => {
+                    acc[site.hostname] = {
+                        visits: site.visits,
+                        sessions: site.sessions,
+                        totalDuration: site.totalDuration
+                    };
+                    return acc;
+                }, {});
+                setSiteData(transformedData);
+            }
             setIsLoading(false);
-        });
+        } catch (error) {
+            console.error('Error fetching site data:', error);
+            setIsLoading(false);
+        }
     };
 
     const clearData = () => {
         if (confirm('Are you sure you want to clear all analytics data?')) {
             chrome.storage.local.set({ siteData: {} });
-        }
-    };
-
-    const handleStorageChange = (changes, namespace) => {
-        if (namespace === 'local' && changes.siteData) {
-            setSiteData(changes.siteData.newValue);
+            // TODO: make it call DELETE ${process.env.LILGUY}/api/sitevisit
         }
     };
 
