@@ -293,18 +293,20 @@ function updateSessionDuration(tabId, duration) {
           }
           ).catch(error => console.error('Error syncing with backend:', error));
 
-          fetch('http://localhost:3000/api/sitevisit', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              hostname,
-              duration: duration,
-            })
+          if (duration) {
+            fetch('http://localhost:3000/api/sitevisit', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                hostname,
+                duration: duration,
+              })
+            }
+            ).catch(error => console.error('Error syncing with backend:', error));
           }
-          ).catch(error => console.error('Error syncing with backend:', error));
-
+          
         });
       });
     } catch (e) {
