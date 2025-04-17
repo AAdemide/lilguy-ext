@@ -81,22 +81,22 @@ const catPage = async () => {
       "dashboard-ui": "learning how to build a dashboard UI with Next.js",
     };
 
-    const inputTexts = Object.values(goals);
+    // const inputTexts = Object.values(goals);
 
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openaiApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "text-embedding-3-small",
-        input: inputTexts,
-      }),
-    });
+    // const response = await fetch("https://api.openai.com/v1/embeddings", {
+    //   method: "POST",
+    //   headers: {
+    //     Authorization: `Bearer ${openaiApiKey}`,
+    //     "Content-Type": "application/json",
+    //   },
+    //   body: JSON.stringify({
+    //     model: "text-embedding-3-small",
+    //     input: inputTexts,
+    //   }),
+    // });
 
-    const data = await response.json();
-    console.log("DATAAA>>>", data);
+    // const data = await response.json();
+    // console.log("DATAAA>>>", data);
 
     const goalEmbeddings = {};
     Object.keys(goals).forEach((key, index) => {
