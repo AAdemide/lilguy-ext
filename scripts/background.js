@@ -1,7 +1,7 @@
 import { encode, decode } from "gpt-tokenizer";
 
-const model = 'gpt-4o';
-const openaiApiKey = '';
+const model = "gpt-4o";
+const openaiApiKey = "";
 
 const apiUrl = "https://api.openai.com/v1/chat/completions";
 let pages = [];
@@ -96,7 +96,7 @@ const catPage = async () => {
     });
 
     const data = await response.json();
-    console.log('DATAAA>>>', data)
+    console.log("DATAAA>>>", data);
 
     const goalEmbeddings = {};
     Object.keys(goals).forEach((key, index) => {
@@ -143,11 +143,10 @@ const catPage = async () => {
 
 chrome.runtime.onMessage.addListener((req, _sender, sendResponse) => {
   pages.push(req);
+  //make fetch to the server here
   catPage();
   sendResponse({ success: "page received" });
 });
-
-
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Extension installed");
@@ -158,7 +157,7 @@ let sessionStartTime = {};
 let activeTabId = null;
 
 // initialize or get current data
-chrome.storage.local.get(['siteData'], (result) => {
+chrome.storage.local.get(["siteData"], (result) => {
   const siteData = result ? result.siteData : {};
   chrome.storage.local.set({ siteData });
 });
@@ -168,7 +167,6 @@ async function ensureContentScript(tabId) {
     await chrome.tabs.sendMessage(tabId, { type: "ping" });
     return true;
   } catch (e) {
-    // Not injected yet, inject it
     await chrome.scripting.executeScript({
       target: { tabId },
       files: ["dist/content.js"],
@@ -179,13 +177,9 @@ async function ensureContentScript(tabId) {
 
 // track active tab
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  // Inject the content script first
   try {
     ensureContentScript(activeInfo.tabId);
-
-  } catch (error) {
-
-  }
+  } catch (error) {}
   const previousTabId = activeTabId;
   activeTabId = activeInfo.tabId;
 
@@ -200,7 +194,6 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 
 // handle navigation events
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  console.log(changeInfo.status, tab.url)
   if (changeInfo.status === "complete" && tab.url) {
     incrementPageView(tab.url);
 
@@ -224,30 +217,32 @@ function incrementPageView(url) {
   try {
     const hostname = new URL(url).hostname;
 
-    chrome.storage.local.get(['siteData'], (result) => {
+    chrome.storage.local.get(["siteData"], (result) => {
       const siteData = result.siteData || {};
       if (!siteData[hostname]) {
         siteData[hostname] = {
           visits: 0,
           sessions: 0,
           totalDuration: 0,
-          userId: null
+          userId: null,
         };
       }
       siteData[hostname].visits += 1;
 
       chrome.storage.local.set({ siteData }, () => {
         // Make POST API call to sync data with backend
-        fetch('http://localhost:3000/api/sitevisits', {
-          method: 'POST',
+        fetch("http://localhost:3000/api/sitevisits", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             hostname,
             siteData: siteData[hostname],
-          })
-        }).catch(error => console.error('Error syncing with backend:', error));
+          }),
+        }).catch((error) =>
+          console.error("Error syncing with backend:", error)
+        );
       });
     });
   } catch (e) {
@@ -265,7 +260,7 @@ function updateSessionDuration(tabId, duration) {
     try {
       const hostname = new URL(tab.url).hostname;
 
-      chrome.storage.local.get(['siteData'], (result) => {
+      chrome.storage.local.get(["siteData"], (result) => {
         const siteData = result ? result.siteData : {};
 
         if (!siteData[hostname]) {
@@ -273,7 +268,7 @@ function updateSessionDuration(tabId, duration) {
             visits: 0,
             sessions: 0,
             totalDuration: 0,
-            userId: null
+            userId: null,
           };
         }
 
@@ -281,32 +276,33 @@ function updateSessionDuration(tabId, duration) {
         siteData[hostname].sessions += 1;
         chrome.storage.local.set({ siteData }, () => {
           // Make POST API call to sync TOTAL data with backend
-          fetch('http://localhost:3000/api/sitevisits', {
-            method: 'POST',
+          fetch("http://localhost:3000/api/sitevisits", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({
               hostname,
               siteData: siteData[hostname],
-            })
-          }
-          ).catch(error => console.error('Error syncing with backend:', error));
+            }),
+          }).catch((error) =>
+            console.error("Error syncing with backend:", error)
+          );
 
           if (duration) {
-            fetch('http://localhost:3000/api/sitevisit', {
-              method: 'POST',
+            fetch("http://localhost:3000/api/sitevisit", {
+              method: "POST",
               headers: {
-                'Content-Type': 'application/json',
+                "Content-Type": "application/json",
               },
               body: JSON.stringify({
                 hostname,
                 duration: duration,
-              })
-            }
-            ).catch(error => console.error('Error syncing with backend:', error));
+              }),
+            }).catch((error) =>
+              console.error("Error syncing with backend:", error)
+            );
           }
-          
         });
       });
     } catch (e) {
