@@ -20,13 +20,18 @@
     }
   },
   "background": {
-    "service_worker": "scripts/background.js"
+    "service_worker": "dist/background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
-      "js": ["content.js"],
+      "js": ["dist/content.js"],
       "matches": ["<all_urls>"]
     }
   ],
-  "permissions": ["storage", "tabs", "activeTab"]
+  "permissions": ["storage", "tabs", "activeTab", "scripting"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "host_permissions": ["<all_urls>"]
 }

@@ -1,6 +1,11 @@
-console.log("Message from content.js")
-console.log('Content script that runs on each page??');
+import { Readability } from "@mozilla/readability";
 
-// This script can be used to send any additional page-specific data to the background script
-// currently, the background script handles most of the tracking
-// since i think this script blocks the thread
+(async () => {
+  const docClone = document.cloneNode(true);
+  const reader = new Readability(docClone);
+  const page = reader.parse();
+  const pageText = page.textContent.trim();
+  const message = { pageText, pageName: window.location.href };
+  const res = await chrome.runtime.sendMessage(message);
+  console.log(res);
+})();
